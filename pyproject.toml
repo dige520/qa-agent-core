@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qa-agent-core"
+version = "1.0.0"
+description = "Enterprise Hybrid RAG and In-Memory DuckDB Engine for AI Testing Agents"
+readme = "README.md"
+authors = [{ name = "QA Team", email = "qa@example.com" }]
+license = { text = "Apache-2.0" }
+dependencies = [
+    "chromadb>=0.4.22",
+    "duckdb>=0.9.2",
+    "python-dotenv>=1.0.0"
+]
+requires-python = ">=3.9"
+
+[project.scripts]
+qa-ingest = "cli.ingest:main"
+qa-mcp = "cli.mcp_server:main"

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "BENCH-DEMO-001",
+    "query": "用户登录 Token 刷新机制与过期时间",
+    "expected_target_substring": "Access Token",
+    "category": "Auth"
+  },
+  {
+    "id": "BENCH-DEMO-002",
+    "query": "连续输错密码几次会被锁定多长时间",
+    "expected_target_substring": "锁定账号 15 分钟",
+    "category": "Security"
+  },
+  {
+    "id": "BENCH-DEMO-003",
+    "query": "登录响应 SLA 与并发支持指标",
+    "expected_target_substring": "P95 < 500ms",
+    "category": "Performance"
+  }
+]
