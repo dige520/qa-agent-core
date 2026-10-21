@@ -1,0 +1,21 @@
+﻿# Python bytecode
+__pycache__/
+*.py[cod]
+*.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+
+# RAG runtime data
+data/
+chroma_db/
+*.duckdb
+*.duckdb.wal
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
