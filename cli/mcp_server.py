@@ -62,12 +62,13 @@ def handle_tools_list() -> Dict[str, Any]:
         "tools": [
             {
                 "name": "search_knowledge_base",
-                "description": "在知识库中执行两阶段高精度混合检索 (Google Gemini 向量 + BM25 倒排 + Cross-Encoder 精排)。",
+                "description": "在知识库中执行两阶段高精度混合检索 (Google Gemini 向量 + BM25 倒排 + Cross-Encoder 精排)。默认自动屏蔽历史已归档文档，包含'归档/历史'意图时自动唤醒。",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "query": {"type": "string", "description": "自然语言技术查询"},
-                        "top_k": {"type": "integer", "description": "返回最相关切片数 (默认 4)", "default": 4}
+                        "top_k": {"type": "integer", "description": "返回最相关切片数 (默认 4)", "default": 4},
+                        "include_archived": {"type": "boolean", "description": "是否强行包含已归档/历史单次测试用例及测试报告 (默认自动识别意图)", "default": False}
                     },
                     "required": ["query"]
                 }
@@ -161,7 +162,8 @@ def handle_call_tool(name: str, arguments: dict) -> Dict[str, Any]:
         if name == "search_knowledge_base":
             q = arguments.get("query", "")
             top_k = arguments.get("top_k", 4)
-            results = search_hybrid(q, top_k=top_k)
+            inc_archived = arguments.get("include_archived", None)
+            results = search_hybrid(q, top_k=top_k, include_archived=inc_archived)
             formatted = []
             for r in results:
                 formatted.append(f"【{r['metadata'].get('title')}】(得分: {r.get('rerank_score')})\n{r.get('text')}\n")

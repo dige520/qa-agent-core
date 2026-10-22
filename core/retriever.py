@@ -112,13 +112,15 @@ def search_hybrid(
     top_k: int = 4,
     chat_history: Optional[List[Dict[str, str]]] = None,
     chroma_dir: Path = None,
-    bm25_file: Path = None
+    bm25_file: Path = None,
+    include_archived: Optional[bool] = None
 ) -> List[Dict]:
     """
     两阶段生产级混合检索入口：
     1. 查询分析与技术实体提取
     2. Vector (70%) + BM25 (30%) 粗排召回
-    3. Cross-Encoder 精排重打分输出 Top-K
+    3. 冷热知识分层路由 (日常静默屏蔽已归档/已废弃资料，显式意图自动召回)
+    4. Cross-Encoder 精排重打分输出 Top-K
     """
     rewriter = QueryRewriter()
     rewrite_res = rewriter.rewrite_query(query, chat_history=chat_history)
@@ -188,10 +190,47 @@ def search_hybrid(
         c["hybrid_score"] = round(h_score, 4)
         candidate_list.append(c)
 
-    # 4. Cross-Encoder 精排
+    # 4. 冷热知识分层过滤 (日常屏蔽已归档/废弃资料，显式查询自动唤醒)
+    ARCHIVE_TRIGGER_KEYWORDS = [
+        "归档", "历史", "测试报告", "当年", "e2e", "废弃", "已下线", "旧版", "archived", "report"
+    ]
+    has_archive_intent = any(kw in query.lower() for kw in ARCHIVE_TRIGGER_KEYWORDS)
+    allow_archived = include_archived if include_archived is not None else has_archive_intent
+
+    ARCHIVED_PATTERNS = [
+        "测试用例_客户端事实源_E2E_服务端",
+        "测试用例_客户端事实源改造_产品端回归",
+        "测试用例_ToolResult_v2_设备工具调用往返_E2E_服务端",
+        "测试用例_v1.5.1_历史重置机制与日记修改删除_E2E",
+        "测试报告_v1.5.0",
+        "测试报告_v1.5.1",
+        "测试报告_v1.5.2",
+        "C27_产品功能说明_飞书版",
+        "以往功能说明分类沉淀汇总",
+        "knowledge_base_implementation_blueprint"
+    ]
+
+    filtered_candidates = []
+    for c in candidate_list:
+        meta = c.get("metadata", {}) or {}
+        st = meta.get("status", "")
+        role = meta.get("source_role", "")
+        title = meta.get("title", "")
+        source_path = meta.get("source_path", "")
+        is_archived = (
+            st in ["Archived", "Deprecated", "TestEvidenceOnly", "HistoricalEvidence"]
+            or role in ["ArchiveEvidence", "HistoricalEvidence", "TestReportEvidence"]
+            or "测试报告" in title
+            or any(pat in source_path or pat in title for pat in ARCHIVED_PATTERNS)
+        )
+        if not allow_archived and is_archived:
+            continue
+        filtered_candidates.append(c)
+
+    # 5. Cross-Encoder 精排
     reranked = CrossEncoderReranker.rerank(
         query=query,
-        candidates=candidate_list,
+        candidates=filtered_candidates if filtered_candidates else candidate_list,
         entities=entities,
         top_k=top_k
     )
